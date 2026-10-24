@@ -73,7 +73,7 @@ CORS(app, resources={r"/api/*": {"origins": [
 MODEL_DIR = "./model"
 
 regression_pipeline = joblib.load(
-    os.path.join(MODEL_DIR, "lasso_regressor_for_sme_revenue.joblib")
+    os.path.join(MODEL_DIR, "ridge_regressor_for_farm_income.joblib")
 )
 
 classification_pipeline = joblib.load(
@@ -95,56 +95,40 @@ sku_lookup = arm_artifact["sku_lookup"]
 print("All the four artifacts have been loaded. The API is ready.")
 
 
-# 1. REGRESSION -- predict monthly revenue (KES) for an SME
+# 1. REGRESSION -- predict annual farm income (KES) for a Kenyan farm
 
-# Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/sme-revenue-regressor/predictions \
-#        -H "Content-Type: application/json" \
-#        -d '{"sector": "Technology", "county": "Nairobi", "quarter": "Q3",
-#             "business_age_years": 4.5, "num_employees": 12,
-#             "owner_education_level": "Secondary",
-#             "monthly_marketing_spend_kes": 45000,
-#             "avg_daily_foot_traffic": null,
-#             "online_presence_score": 78.0, "loan_amount_kes": 250000,
-#             "interest_rate_pct": 14.5, "inflation_rate_pct": 6.5,
-#             "competitor_density": 5, "customer_satisfaction_score": 4.2}'
-#
 # Sample request (PowerShell):
 #   Invoke-RestMethod -Method Post `
-#     -Uri "http://127.0.0.1:5000/api/v1/models/sme-revenue-regressor/predictions" `
+#     -Uri "http://127.0.0.1:5000/api/v1/models/farm-income-regressor/predictions" `
 #     -ContentType "application/json" `
-#     -Body (@{sector="Technology"; county="Nairobi"; quarter="Q3";
-#              business_age_years=4.5; num_employees=12;
-#              owner_education_level="Secondary";
-#              monthly_marketing_spend_kes=45000; avg_daily_foot_traffic=$null;
-#              online_presence_score=78.0; loan_amount_kes=250000;
-#              interest_rate_pct=14.5; inflation_rate_pct=6.5;
-#              competitor_density=5; customer_satisfaction_score=4.2} | ConvertTo-Json)
+#     -Body (@{crop_type="Tea"; county="Kericho"; irrigation_type="Manual";
+#              cooperative_member="No"; farm_size_acres=10.49;
+#              years_farming_experience=9.3; num_workers_employed=1;
+#              rainfall_mm=967.0; soil_quality_score=54.5;
+#              market_distance_km=6.0;
+#              irrigation_maintenance_cost_kes=3207.36} | ConvertTo-Json)
 #
-# Note: avg_daily_foot_traffic is deliberately null for a Technology-sector
-# business (fully online -- foot traffic is structurally not applicable, not
-# missing at random). The pipeline's own imputer handles the null value; nothing
-# in this file needs to know that rule.
-@app.route("/api/v1/models/sme-revenue-regressor/predictions", methods=["POST"])
-def predict_revenue():
+# Note: irrigation_maintenance_cost_kes can be null when irrigation_type is
+# "None" (no irrigation system means no maintenance cost). The pipeline's own
+# imputer fills it with 0; nothing in this file needs to know that rule.
+@app.route("/api/v1/models/farm-income-regressor/predictions", methods=["POST"])
+def predict_farm_income():
     payload = request.get_json()
+    # A JSON null arrives as None, which makes pandas type this column as
+    # "object"; cast it to float so None becomes NaN and the pipeline's
+    # constant-0 imputer recognises it as missing.
+    input_row = pd.DataFrame([payload]).astype(
+        {"irrigation_maintenance_cost_kes": float}
+    )
 
-    # Build a one-row DataFrame straight from the JSON body. No manual
-    # label-encoding, no manual date parsing, no manual column reordering, etc. --
-    # the pipeline's ColumnTransformer already knows which columns it expects
-    # and how to preprocess each one.
-    input_row = pd.DataFrame([payload])
-
-    predicted_log_revenue = regression_pipeline.predict(input_row)[0]
-    # The pipeline was trained on log1p(revenue) because revenue was
-    # right-skewed; we invert that single transformation here to report the
-    # predictions in KES.
-    import numpy as np
-    predicted_revenue_kes = float(np.expm1(predicted_log_revenue))
+    # The pipeline wraps Ridge in a TransformedTargetRegressor
+    # (log1p for training, expm1 for prediction), so .predict() already
+    # returns KES. Do NOT apply np.expm1 again here.
+    predicted_income_kes = float(regression_pipeline.predict(input_row)[0])
 
     return jsonify({
-        "predicted_monthly_revenue_kes": round(predicted_revenue_kes, 2),
-        "model": "Lasso Regressor",
+        "predicted_annual_farm_income_kes": round(predicted_income_kes, 2),
+        "model": "Ridge Regressor (tuned, alpha=0.01)",
     })
 
 
