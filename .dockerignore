@@ -1,0 +1,19 @@
+# Keep the Docker build context small and free of secrets.
+# The app image only needs requirements/, api.py and model/;
+# the nginx image only needs frontend/.
+
+# Local Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Version control and IDE files
+.git/
+.idea/
+
+# Secrets -- must never end up inside an image
+.env
+
+# Bind-mounted at runtime (certs, ubuntu home), never copied into images
+container-volumes/
