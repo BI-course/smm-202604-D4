@@ -64,7 +64,7 @@ with tab_regression:
         # OrdinalEncoder was fitted on.
         owner_education_level = st.selectbox(
             "Owner Education Level",
-            ["Primary", "Secondary", "Tertiary", "Postgraduate"], index=1)
+            ["Primary", "Secondary", "Certificate", "Bachelors", "Masters","Doctrate"], index=1)
         monthly_marketing_spend_kes = st.number_input("Monthly Marketing Spend (KES)", value=45000)
         avg_daily_foot_traffic = st.number_input(
             "Avg Daily Foot Traffic (leave 0 if not applicable)", value=0)
@@ -105,7 +105,7 @@ with tab_classification:
         loan_purpose = st.text_input("Loan Purpose", "Working Capital")
         owner_education_level2 = st.selectbox(
             "Owner Education Level",
-            ["Primary", "Secondary", "Tertiary", "Postgraduate"], index=1, key="oel2")
+            ["Primary", "Secondary", "Certificate", "Bachelors", "Masters","Doctrate"], index=1, key="oel2")
         business_age_years2 = st.number_input("Business Age (years)", value=2.1, key="bay2")
         num_employees2 = st.number_input("Number of Employees", value=4, key="ne2")
         monthly_revenue_kes = st.number_input("Monthly Revenue (KES)", value=850000)
