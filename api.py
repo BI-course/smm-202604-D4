@@ -77,7 +77,7 @@ regression_pipeline = joblib.load(
 )
 
 classification_pipeline = joblib.load(
-    os.path.join(MODEL_DIR, "svc_classifier_for_sme_credit_risk.joblib")
+    os.path.join(MODEL_DIR, "invoice_payment_risk_classifier.joblib")
 )
 
 clustering_artifact = joblib.load(
@@ -131,43 +131,73 @@ def predict_farm_income():
         "model": "Ridge Regressor (tuned, alpha=0.01)",
     })
 
-
-# 2. CLASSIFICATION -- predict SME credit risk category (Low/Medium/High)
-
-# Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/sme-credit-risk-classifier/predictions \
+# 2. CLASSIFICATION -- predict invoice payment risk (On-Time / Late / Severely Late)
+# Sample request (cURL) -- invoice from invoice_payment_risk.csv
+# (invoice_id 590, actual category: On-Time):
+#   curl -X POST http://127.0.0.1:5000/api/v1/models/invoice-payment-risk-classifier/predictions \
 #        -H "Content-Type: application/json" \
-#        -d '{"sector": "Retail", "county": "Nairobi", "quarter": "Q2",
-#             "loan_purpose": "Working Capital", "owner_education_level": "Secondary",
-#             "business_age_years": 2.1, "num_employees": 4,
-#             "monthly_revenue_kes": 850000, "loan_amount_kes": 150000,
-#             "loan_term_months": 12, "interest_rate_pct": 16.5,
-#             "collateral_value_kes": null, "debt_to_income_ratio": 0.62,
-#             "credit_score": 590, "num_previous_loans": 1,
-#             "missed_payments_count": 3, "online_presence_score": 40.0,
-#             "customer_satisfaction_score": 3.4, "competitor_density": 6}'
-#
-#
-# Note: collateral_value_kes is null here because "Working Capital" loans are
-# more often unsecured (structural missingness, not missing at random) --
-# again, the pipeline's imputer + missingness indicator already handles this
-# internally; this route does not need special code for it.
-@app.route("/api/v1/models/sme-credit-risk-classifier/predictions", methods=["POST"])
-def predict_credit_risk():
-    payload = request.get_json()
-    input_row = pd.DataFrame([payload])
+#        -d '{"client_industry": "Technology", "client_credit_rating": "Good",
+#             "payment_method": "Bank Transfer", "has_dispute_history": "No",
+#             "payment_terms_days": 30, "invoice_amount_kes": 371672.0,
+#             "prior_late_payments_count": 1, "discount_offered_pct": 2.06,
+#             "days_outstanding_avg_historical": 16.4,
+#             "economic_sector_growth_rate_pct": 4.42}'
+
+INVOICE_NUMERIC_FIELDS = [
+    "payment_terms_days", "invoice_amount_kes", "prior_late_payments_count",
+    "discount_offered_pct", "days_outstanding_avg_historical",
+    "economic_sector_growth_rate_pct",
+]
+INVOICE_CATEGORICAL_FIELDS = [
+    "client_industry", "client_credit_rating", "payment_method",
+    "has_dispute_history",
+]
+INVOICE_CREDIT_RATINGS = ["Poor", "Fair", "Good", "Excellent"]
+
+@app.route("/api/v1/models/invoice-payment-risk-classifier/predictions", methods=["POST"])
+def predict_payment_risk():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "The request body must be a JSON object."}), 400
+
+    missing = [
+        field for field in INVOICE_NUMERIC_FIELDS + INVOICE_CATEGORICAL_FIELDS
+        if payload.get(field) is None or payload.get(field) == ""
+    ]
+    if missing:
+        return jsonify({
+            "error": "Missing required field(s): " + ", ".join(missing),
+            "missing_fields": missing,
+        }), 400
+
+    row = {}
+    for field in INVOICE_NUMERIC_FIELDS:
+        try:
+            row[field] = float(payload[field])
+        except (TypeError, ValueError):
+            return jsonify({"error": f"Field '{field}' must be a number."}), 400
+    for field in INVOICE_CATEGORICAL_FIELDS:
+        row[field] = str(payload[field])
+
+    if row["client_credit_rating"] not in INVOICE_CREDIT_RATINGS:
+        return jsonify({
+            "error": "client_credit_rating must be one of: "
+                     + ", ".join(INVOICE_CREDIT_RATINGS),
+        }), 400
+
+    input_row = pd.DataFrame([row])
 
     predicted_class = classification_pipeline.predict(input_row)[0]
     predicted_probabilities = classification_pipeline.predict_proba(input_row)[0]
     class_labels = classification_pipeline.named_steps["model"].classes_
 
     return jsonify({
-        "predicted_credit_risk_category": str(predicted_class),
+        "predicted_payment_risk_category": str(predicted_class),
         "class_probabilities": {
             str(label): round(float(prob), 4)
             for label, prob in zip(class_labels, predicted_probabilities)
         },
-        "model": "Support Vector Classifier (tuned, SMOTE-resampled at training only)",
+        "model": "Logistic Regression (tuned, L1, C=10; SMOTE-resampled at training only)",
     })
 
 
