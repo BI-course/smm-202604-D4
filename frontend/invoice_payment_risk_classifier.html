@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Payment Risk Classifier</title>
+<style>
+  :root {
+    --accent: #0891b2;
+    --accent-dark: #0e7490;
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --ok-bg: #ecfeff;
+    --err-bg: #fef2f2;
+    --err-text: #b91c1c;
+    --err-border: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
+    max-width: 560px;
+    width: 100%;
+    padding: 32px 32px 28px;
+  }
+  .back-link { display: inline-block; margin-bottom: 16px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .back-link:hover { color: var(--accent); }
+  .badge {
+    display: inline-block; background: var(--ok-bg); color: var(--accent-dark);
+    font-size: 12px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
+  label .hint { font-weight: 400; color: var(--muted); }
+  input, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 10px; font-size: 14px; background: #fff; color: var(--text);
+  }
+  input:focus, select:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(8,145,178,0.15);
+  }
+  input.invalid, select.invalid { border-color: var(--err-border); background: #fff7f7; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    width: 100%; margin-top: 24px; padding: 12px 16px; background: var(--accent);
+    color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s ease;
+  }
+  button:hover { background: var(--accent-dark); }
+  button:disabled { background: #7dd3e8; cursor: default; }
+  #result { margin-top: 20px; padding: 16px; border-radius: 10px; font-size: 14px; display: none; }
+  #result.show { display: block; }
+  #result.ok { background: var(--ok-bg); color: var(--accent-dark); }
+  #result.err { background: var(--err-bg); color: var(--err-text); }
+  #result .figure { font-size: 22px; font-weight: 700; margin: 4px 0 8px; }
+  .prob-bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; }
+  .prob-bar .name { width: 96px; }
+  .prob-bar .track { flex: 1; height: 6px; background: #d1f5fb; border-radius: 3px; overflow: hidden; }
+  .prob-bar .fill { height: 100%; background: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <a class="back-link" href="index.html">&larr; All endpoints</a>
+    <span class="badge">Classification</span>
+    <h1>Invoice Payment Risk Classifier</h1>
+    <p class="lead">Calls <code>POST /api/v1/models/invoice-payment-risk-classifier/predictions</code>.
+      Predicts whether a B2B invoice will be paid On-Time, Late or Severely Late.</p>
+
+    <!-- novalidate: the checks below are done in JavaScript so that an empty
+         field always produces one clear message, instead of the browser's
+         own tooltip (which does not appear in every browser or screen recording). -->
+    <form id="predictForm" novalidate>
+      <div class="row">
+        <div>
+          <label for="client_industry">Client Industry</label>
+          <select id="client_industry" data-label="Client Industry">
+            <option value="">Select...</option>
+            <option selected>Technology</option><option>Manufacturing</option>
+            <option>Retail</option><option>Construction</option><option>Healthcare</option>
+          </select>
+        </div>
+        <div>
+          <label for="client_credit_rating">Client Credit Rating</label>
+          <select id="client_credit_rating" data-label="Client Credit Rating">
+            <option value="">Select...</option>
+            <option>Poor</option><option>Fair</option><option selected>Good</option><option>Excellent</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="payment_method">Payment Method</label>
+          <select id="payment_method" data-label="Payment Method">
+            <option value="">Select...</option>
+            <option selected>Bank Transfer</option><option>Mobile Money</option>
+            <option>Cheque</option><option>Letter of Credit</option>
+          </select>
+        </div>
+        <div>
+          <label for="has_dispute_history">Has Dispute History</label>
+          <select id="has_dispute_history" data-label="Dispute History">
+            <option value="">Select...</option>
+            <option selected>No</option><option>Yes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="payment_terms_days">Payment Terms (days) <span class="hint">(15&ndash;90)</span></label>
+          <input type="number" id="payment_terms_days" data-label="Payment Terms" min="0" value="30">
+        </div>
+        <div>
+          <label for="invoice_amount_kes">Invoice Amount (KES)</label>
+          <input type="number" id="invoice_amount_kes" data-label="Invoice Amount" min="0" value="371672">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="prior_late_payments_count">Prior Late Payments</label>
+          <input type="number" id="prior_late_payments_count" data-label="Prior Late Payments" min="0" step="1" value="1">
+        </div>
+        <div>
+          <label for="discount_offered_pct">Discount Offered (%)</label>
+          <input type="number" id="discount_offered_pct" data-label="Discount Offered" min="0" step="0.01" value="2.06">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="days_outstanding_avg_historical">Avg Days Outstanding <span class="hint">(history)</span></label>
+          <input type="number" id="days_outstanding_avg_historical" data-label="Avg Days Outstanding" min="0" step="0.1" value="16.4">
+        </div>
+        <div>
+          <label for="economic_sector_growth_rate_pct">Sector Growth Rate (%)</label>
+          <input type="number" id="economic_sector_growth_rate_pct" data-label="Sector Growth Rate" step="0.01" value="4.42">
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn">Predict Payment Risk</button>
+    </form>
+
+    <div id="result" role="alert"></div>
+  </div>
+
+<script>
+  // Where to send the request:
+  //  * Page opened straight from disk (file://) or from an editor's live-server
+  //    (ports 5500 / 63342): the API is the Flask/Gunicorn app on port 5000.
+  //  * Page served by Nginx (https://127.0.0.1/): use a RELATIVE path, so the
+  //    request goes to the same origin and Nginx forwards /api/ to Gunicorn.
+  const isDirect = window.location.protocol === "file:" ||
+                   ["5500", "63342"].includes(window.location.port);
+  const API_BASE = isDirect ? "http://127.0.0.1:5000" : "";
+  const API_URL = API_BASE + "/api/v1/models/invoice-payment-risk-classifier/predictions";
+
+  const NUMERIC_FIELDS = [
+    "payment_terms_days", "invoice_amount_kes", "prior_late_payments_count",
+    "discount_offered_pct", "days_outstanding_avg_historical",
+    "economic_sector_growth_rate_pct",
+  ];
+  const CATEGORICAL_FIELDS = [
+    "client_industry", "client_credit_rating", "payment_method", "has_dispute_history",
+  ];
+  const ALL_FIELDS = CATEGORICAL_FIELDS.concat(NUMERIC_FIELDS);
+
+  const form = document.getElementById("predictForm");
+  const result = document.getElementById("result");
+  const submitBtn = document.getElementById("submitBtn");
+
+  function showError(message) {
+    result.className = "show err";
+    result.textContent = message;
+  }
+
+  // Clear the red outline as soon as the person starts fixing a field.
+  ALL_FIELDS.forEach(function (id) {
+    const el = document.getElementById(id);
+    el.addEventListener("input", function () { el.classList.remove("invalid"); });
+    el.addEventListener("change", function () { el.classList.remove("invalid"); });
+  });
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    ALL_FIELDS.forEach(function (id) { document.getElementById(id).classList.remove("invalid"); });
+
+    // 1. Missing / invalid input: stop here, name the fields, send nothing.
+    const missing = [];
+    const notNumbers = [];
+    ALL_FIELDS.forEach(function (id) {
+      const el = document.getElementById(id);
+      const value = el.value.trim();
+      if (value === "") {
+        missing.push(el);
+      } else if (NUMERIC_FIELDS.includes(id) && !Number.isFinite(Number(value))) {
+        notNumbers.push(el);
+      }
+    });
+    if (missing.length || notNumbers.length) {
+      missing.concat(notNumbers).forEach(function (el) { el.classList.add("invalid"); });
+      const parts = [];
+      if (missing.length) {
+        parts.push("Please fill in: " + missing.map(function (el) { return el.dataset.label; }).join(", ") + ".");
+      }
+      if (notNumbers.length) {
+        parts.push("These must be numbers: " + notNumbers.map(function (el) { return el.dataset.label; }).join(", ") + ".");
+      }
+      showError(parts.join(" "));
+      (missing.concat(notNumbers))[0].focus();
+      return;
+    }
+
+    // 2. Build the JSON body with exactly the column names the pipeline was trained on.
+    const payload = {};
+    CATEGORICAL_FIELDS.forEach(function (id) { payload[id] = document.getElementById(id).value; });
+    NUMERIC_FIELDS.forEach(function (id) { payload[id] = Number(document.getElementById(id).value); });
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Predicting...";
+    result.className = "";
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      let data = null;
+      try { data = await response.json(); } catch (parseErr) { /* non-JSON reply, handled below */ }
+
+      if (!response.ok) {
+        // The API answers bad input with {"error": "..."} -- show that text.
+        const reason = data && data.error ? data.error : "Server responded " + response.status + ".";
+        showError("The API rejected the request: " + reason);
+        return;
+      }
+      if (!data || !data.class_probabilities || !data.predicted_payment_risk_category) {
+        showError("The API replied, but the answer was not in the expected format.");
+        return;
+      }
+
+      // 3. Show the prediction (built with the DOM, not innerHTML).
+      result.className = "show ok";
+      result.textContent = "";
+
+      const modelLine = document.createElement("div");
+      modelLine.textContent = "Model: " + data.model;
+      const figure = document.createElement("div");
+      figure.className = "figure";
+      figure.textContent = data.predicted_payment_risk_category;
+      result.appendChild(modelLine);
+      result.appendChild(figure);
+
+      Object.entries(data.class_probabilities)
+        .sort(function (a, b) { return b[1] - a[1]; })
+        .forEach(function (entry) {
+          const bar = document.createElement("div");
+          bar.className = "prob-bar";
+          const name = document.createElement("span");
+          name.className = "name";
+          name.textContent = entry[0];
+          const track = document.createElement("div");
+          track.className = "track";
+          const fill = document.createElement("div");
+          fill.className = "fill";
+          fill.style.width = (entry[1] * 100).toFixed(0) + "%";
+          track.appendChild(fill);
+          const pct = document.createElement("span");
+          pct.textContent = (entry[1] * 100).toFixed(1) + "%";
+          bar.appendChild(name);
+          bar.appendChild(track);
+          bar.appendChild(pct);
+          result.appendChild(bar);
+        });
+    } catch (err) {
+      // fetch() itself failed: server down, wrong address, blocked by CORS...
+      showError("Could not reach the API at " + API_URL +
+        ". Is api.py (or the Nginx + Gunicorn containers) running? (" + err.message + ")");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Predict Payment Risk";
+    }
+  });
+</script>
+</body>
+</html>
