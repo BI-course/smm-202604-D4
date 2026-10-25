@@ -5,174 +5,218 @@ import pandas as pd
 import os
 
 # -----------------------------------------------------------------------
-# Load all four persisted artifacts ONCE, at module import time. Streamlit
-# re-runs this whole script top-to-bottom on every widget interaction, so
-# @st.cache_resource keeps joblib.load() from re-reading the files from
-# disk on every single click -- without it, every tab switch and every
-# form submission would reload all four artifacts again.
+# Load the four persisted artifacts ONCE. Streamlit re-runs this whole
+# script top-to-bottom on every widget interaction, so @st.cache_resource
+# keeps joblib.load() from re-reading the files from disk on every click.
+# MODEL_DIR is found relative to this file, so the app works whether it is
+# started from the repo root, from this folder, or on Streamlit Cloud.
 # -----------------------------------------------------------------------
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "model")
+
+
 @st.cache_resource
-def load_artifacts():
-    # regression_pipeline = joblib.load("lasso_regressor_for_sme_revenue.joblib")
-    # classification_pipeline = joblib.load("svc_classifier_for_sme_credit_risk.joblib")
-    # clustering_artifact = joblib.load("kmeans_mall_customer_segmentation.joblib")
-    # arm_artifact = joblib.load("apriori_recommendation_rules.joblib")
-    MODEL_DIR = "./model"
+def load_artifact(file_name):
+    """Load one saved model file once. Returns None if the file is not in model/ yet,
+    so one missing model does not crash the whole app."""
+    path = os.path.join(MODEL_DIR, file_name)
+    if not os.path.exists(path):
+        return None
+    return joblib.load(path)
 
-    regression_pipeline = joblib.load(
-        os.path.join(MODEL_DIR, "lasso_regressor_for_sme_revenue.joblib")
-    )
 
-    classification_pipeline = joblib.load(
-        os.path.join(MODEL_DIR, "svc_classifier_for_sme_credit_risk.joblib")
-    )
+# Each model owner's saved file (change a name here when an owner's model is merged).
+REGRESSION_FILE = "ridge_regressor_for_farm_income.joblib"          # Member 2
+CLASSIFICATION_FILE = "invoice_payment_risk_classifier.joblib"      # Member 3
+CLUSTERING_FILE = "kmeans_farmer_segmentation.joblib"               # Member 4 (Maxwell)
+RECOMMENDER_FILE = "apriori_recommendation_rules.joblib"            # Member 5 -> replace with our food recommender
 
-    clustering_artifact = joblib.load(
-        os.path.join(MODEL_DIR, "kmeans_mall_customer_segmentation.joblib")
-    )
+regression_pipeline = load_artifact(REGRESSION_FILE)
+classification_pipeline = load_artifact(CLASSIFICATION_FILE)
+clustering_artifact = load_artifact(CLUSTERING_FILE)
+arm_artifact = load_artifact(RECOMMENDER_FILE)
 
-    arm_artifact = joblib.load(
-        os.path.join(MODEL_DIR, "apriori_recommendation_rules.joblib")
-    )
-    return regression_pipeline, classification_pipeline, clustering_artifact, arm_artifact
 
-regression_pipeline, classification_pipeline, clustering_artifact, arm_artifact = load_artifacts()
-clustering_scaler = clustering_artifact["scaler"]
-clustering_kmeans = clustering_artifact["kmeans"]
-recommendation_lookup = arm_artifact["recommendation_lookup"]
-sku_lookup = arm_artifact["sku_lookup"]
+def model_missing(file_name):
+    st.warning(f"Model file `model/{file_name}` is not in the repository yet. "
+               "This tab will work once its owner's pull request is merged.")
+
 
 st.set_page_config(page_title="BBT 4206 Model Validation Demos", page_icon="\U0001F4CA", layout="centered")
 st.title("BBT 4206 -- Model Validation Demos")
 
 tab_regression, tab_classification, tab_clustering, tab_arm = st.tabs([
-    "SME Revenue Regressor", "SME Credit Risk Classifier",
-    "Mall Customer Segmenter", "E-commerce Recommender",
+    "Farm Income Regressor", "Invoice Payment Risk Classifier",
+    "Farmer Segmenter", "E-commerce Recommender",
 ])
 
 # -----------------------------------------------------------------------
-# 1. Regression
+# 1. Regression -- annual farm income in KES (Member 2)
 # -----------------------------------------------------------------------
 with tab_regression:
+    st.caption("Predicts a Kenyan farm's annual income (KES).")
     with st.form("regression_form"):
-        sector = st.text_input("Sector", "Technology")
-        county = st.text_input("County", "Nairobi")
-        quarter = st.text_input("Quarter", "Q3")
-        business_age_years = st.number_input("Business Age (years)", value=4.5)
-        num_employees = st.number_input("Number of Employees", value=12)
-        # These four categories are the exact set the pipeline's
-        # OrdinalEncoder was fitted on.
-        owner_education_level = st.selectbox(
-            "Owner Education Level",
-<<<<<<< HEAD
-            ["Primary", "Secondary", "Certificate", "Bachelors", "Masters","Doctrate"], index=1)
-=======
-            ["Primary", "Secondary", "Certificate", "Bachelors", "Masters", "Doctorate"], index=1)
->>>>>>> origin/main
-        monthly_marketing_spend_kes = st.number_input("Monthly Marketing Spend (KES)", value=45000)
-        avg_daily_foot_traffic = st.number_input(
-            "Avg Daily Foot Traffic (leave 0 if not applicable)", value=0)
-        online_presence_score = st.number_input("Online Presence Score", value=78.0)
-        loan_amount_kes = st.number_input("Loan Amount (KES)", value=250000)
-        interest_rate_pct = st.number_input("Interest Rate (%)", value=14.5)
-        inflation_rate_pct = st.number_input("Inflation Rate (%)", value=6.5)
-        competitor_density = st.number_input("Competitor Density", value=5)
-        customer_satisfaction_score = st.number_input("Customer Satisfaction Score", value=4.2)
-        submitted = st.form_submit_button("Predict Revenue")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            # The pipeline's OneHotEncoder was fitted on exactly these categories.
+            crop_type = st.selectbox(
+                "Crop Type", ["Coffee", "Dairy", "Horticulture", "Maize", "Tea"], index=4, key="reg_crop")
+            county = st.selectbox(
+                "County", ["Kericho", "Kiambu", "Meru", "Nakuru", "Uasin Gishu", "Other"], key="reg_county")
+            irrigation_type = st.selectbox(
+                "Irrigation Type", ["Manual", "Drip", "Automated", "None"], key="reg_irrigation")
+            cooperative_member = st.selectbox("Cooperative Member", ["No", "Yes"], key="reg_coop")
+            farm_size_acres = st.number_input(
+                "Farm Size (acres)", min_value=0.0, value=10.49, step=0.1, key="reg_size")
+            years_farming_experience = st.number_input(
+                "Years of Farming Experience", min_value=0.0, value=9.3, step=0.1, key="reg_exp")
+        with col_b:
+            num_workers_employed = st.number_input(
+                "Workers Employed", min_value=0, value=1, step=1, key="reg_workers")
+            rainfall_mm = st.number_input(
+                "Rainfall (mm per year)", min_value=0.0, value=967.0, step=10.0, key="reg_rain")
+            soil_quality_score = st.number_input(
+                "Soil Quality Score", min_value=0.0, value=54.5, step=0.1, key="reg_soil")
+            market_distance_km = st.number_input(
+                "Distance to Market (km)", min_value=0.0, value=6.0, step=0.1, key="reg_distance")
+            irrigation_maintenance_cost_kes = st.number_input(
+                "Irrigation Maintenance Cost (KES, ignored if no irrigation)",
+                min_value=0.0, value=3207.36, step=100.0, key="reg_maint")
+        submitted = st.form_submit_button("Predict Farm Income")
 
-    if submitted:
+    if submitted and regression_pipeline is None:
+        model_missing(REGRESSION_FILE)
+    elif submitted:
         payload = {
-            "sector": sector, "county": county, "quarter": quarter,
-            "business_age_years": business_age_years, "num_employees": num_employees,
-            "owner_education_level": owner_education_level,
-            "monthly_marketing_spend_kes": monthly_marketing_spend_kes,
-            "avg_daily_foot_traffic": avg_daily_foot_traffic or None,
-            "online_presence_score": online_presence_score,
-            "loan_amount_kes": loan_amount_kes, "interest_rate_pct": interest_rate_pct,
-            "inflation_rate_pct": inflation_rate_pct,
-            "competitor_density": competitor_density,
-            "customer_satisfaction_score": customer_satisfaction_score,
+            "crop_type": crop_type, "county": county,
+            "irrigation_type": irrigation_type, "cooperative_member": cooperative_member,
+            "farm_size_acres": farm_size_acres,
+            "years_farming_experience": years_farming_experience,
+            "num_workers_employed": num_workers_employed,
+            "rainfall_mm": rainfall_mm, "soil_quality_score": soil_quality_score,
+            "market_distance_km": market_distance_km,
+            # No irrigation system means no maintenance cost: send it as missing,
+            # exactly like the API does, and the pipeline's imputer fills it.
+            "irrigation_maintenance_cost_kes": (
+                None if irrigation_type == "None" else irrigation_maintenance_cost_kes),
         }
-        input_row = pd.DataFrame([payload])
-        predicted_log_revenue = regression_pipeline.predict(input_row)[0]
-        predicted_revenue_kes = float(np.expm1(predicted_log_revenue))
-        st.success(f"Predicted monthly revenue: KES {predicted_revenue_kes:,.2f}")
+        input_row = pd.DataFrame([payload]).astype({"irrigation_maintenance_cost_kes": float})
+        # The pipeline already converts back from log to KES (TransformedTargetRegressor),
+        # so no np.expm1 here.
+        predicted_income_kes = float(regression_pipeline.predict(input_row)[0])
+        st.success(f"Predicted annual farm income: KES {predicted_income_kes:,.2f}")
 
 # -----------------------------------------------------------------------
-# 2. Classification
+# 2. Classification -- invoice payment risk (Member 3)
 # -----------------------------------------------------------------------
 with tab_classification:
+    st.caption("Predicts whether a B2B invoice will be paid On-Time, Late or Severely Late.")
     with st.form("classification_form"):
-        sector2 = st.text_input("Sector", "Retail")
-        county2 = st.text_input("County", "Nairobi")
-        quarter2 = st.text_input("Quarter", "Q2")
-        loan_purpose = st.text_input("Loan Purpose", "Working Capital")
-        owner_education_level2 = st.selectbox(
-            "Owner Education Level",
-<<<<<<< HEAD
-            ["Primary", "Secondary", "Certificate", "Bachelors", "Masters","Doctrate"], index=1, key="oel2")
-=======
-            ["Primary", "Secondary", "Certificate", "Bachelors", "Masters", "Doctorate"], index=1, key="oel2")
->>>>>>> origin/main
-        business_age_years2 = st.number_input("Business Age (years)", value=2.1, key="bay2")
-        num_employees2 = st.number_input("Number of Employees", value=4, key="ne2")
-        monthly_revenue_kes = st.number_input("Monthly Revenue (KES)", value=850000)
-        loan_amount_kes2 = st.number_input("Loan Amount (KES)", value=150000, key="lak2")
-        loan_term_months = st.number_input("Loan Term (months)", value=12)
-        interest_rate_pct2 = st.number_input("Interest Rate (%)", value=16.5, key="irp2")
-        collateral_value_kes = st.number_input("Collateral Value (leave 0 if unsecured)", value=0)
-        debt_to_income_ratio = st.number_input("Debt-to-Income Ratio", value=0.62)
-        credit_score = st.number_input("Credit Score", value=590)
-        num_previous_loans = st.number_input("Number of Previous Loans", value=1)
-        missed_payments_count = st.number_input("Missed Payments Count", value=3)
-        online_presence_score2 = st.number_input("Online Presence Score", value=40.0, key="ops2")
-        customer_satisfaction_score2 = st.number_input(
-            "Customer Satisfaction Score", value=3.4, key="css2")
-        competitor_density2 = st.number_input("Competitor Density", value=6, key="cd2")
-        submitted2 = st.form_submit_button("Predict Credit Risk")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            client_industry = st.selectbox(
+                "Client Industry",
+                ["Technology", "Manufacturing", "Retail", "Construction", "Healthcare"],
+                key="clf_industry")
+            payment_method = st.selectbox(
+                "Payment Method",
+                ["Bank Transfer", "Mobile Money", "Cheque", "Letter of Credit"],
+                key="clf_method")
+            payment_terms_days = st.number_input(
+                "Payment Terms (days)", min_value=0, value=30, step=1, key="clf_terms")
+            prior_late_payments_count = st.number_input(
+                "Prior Late Payments", min_value=0, value=1, step=1, key="clf_prior_late")
+            days_outstanding_avg_historical = st.number_input(
+                "Avg Days Outstanding (history)", min_value=0.0, value=16.4, step=0.1,
+                key="clf_days_out")
+        with col_b:
+            # The pipeline's OrdinalEncoder was fitted on exactly these four
+            # ratings, in this order (Poor < Fair < Good < Excellent).
+            client_credit_rating = st.selectbox(
+                "Client Credit Rating", ["Poor", "Fair", "Good", "Excellent"], index=2,
+                key="clf_rating")
+            has_dispute_history = st.selectbox(
+                "Has Dispute History", ["No", "Yes"], key="clf_dispute")
+            invoice_amount_kes = st.number_input(
+                "Invoice Amount (KES)", min_value=0.0, value=371672.0, step=1000.0,
+                key="clf_amount")
+            discount_offered_pct = st.number_input(
+                "Discount Offered (%)", min_value=0.0, value=2.06, step=0.01, key="clf_discount")
+            economic_sector_growth_rate_pct = st.number_input(
+                "Sector Growth Rate (%)", value=4.42, step=0.01, key="clf_growth")
+        submitted_clf = st.form_submit_button("Predict Payment Risk")
 
-    if submitted2:
+    if submitted_clf and classification_pipeline is None:
+        model_missing(CLASSIFICATION_FILE)
+    elif submitted_clf:
+        # Exactly the column names the pipeline was trained on.
         payload = {
-            "sector": sector2, "county": county2, "quarter": quarter2,
-            "loan_purpose": loan_purpose, "owner_education_level": owner_education_level2,
-            "business_age_years": business_age_years2, "num_employees": num_employees2,
-            "monthly_revenue_kes": monthly_revenue_kes, "loan_amount_kes": loan_amount_kes2,
-            "loan_term_months": loan_term_months, "interest_rate_pct": interest_rate_pct2,
-            "collateral_value_kes": collateral_value_kes or None,
-            "debt_to_income_ratio": debt_to_income_ratio, "credit_score": credit_score,
-            "num_previous_loans": num_previous_loans,
-            "missed_payments_count": missed_payments_count,
-            "online_presence_score": online_presence_score2,
-            "customer_satisfaction_score": customer_satisfaction_score2,
-            "competitor_density": competitor_density2,
+            "client_industry": client_industry,
+            "client_credit_rating": client_credit_rating,
+            "payment_method": payment_method,
+            "has_dispute_history": has_dispute_history,
+            "payment_terms_days": payment_terms_days,
+            "invoice_amount_kes": invoice_amount_kes,
+            "prior_late_payments_count": prior_late_payments_count,
+            "discount_offered_pct": discount_offered_pct,
+            "days_outstanding_avg_historical": days_outstanding_avg_historical,
+            "economic_sector_growth_rate_pct": economic_sector_growth_rate_pct,
         }
         input_row = pd.DataFrame([payload])
         predicted_class = classification_pipeline.predict(input_row)[0]
         predicted_probabilities = classification_pipeline.predict_proba(input_row)[0]
         class_labels = classification_pipeline.named_steps["model"].classes_
-        st.success(f"Predicted credit risk category: {predicted_class}")
-        st.write({str(label): round(float(prob), 4)
-                  for label, prob in zip(class_labels, predicted_probabilities)})
+        st.success(f"Predicted payment risk: {predicted_class}")
+        for label, prob in sorted(zip(class_labels, predicted_probabilities),
+                                  key=lambda item: item[1], reverse=True):
+            st.progress(float(prob), text=f"{label}: {prob:.1%}")
 
 # -----------------------------------------------------------------------
-# 3. Clustering
+# 3. Clustering -- farmer segmentation (Member 4: Maxwell)
 # -----------------------------------------------------------------------
 with tab_clustering:
-    with st.form("clustering_form"):
-        age = st.number_input("Age", min_value=1, max_value=100, value=27)
-        annual_income_k = st.number_input("Annual Income (k$)", min_value=0.0, value=45.0)
-        spending_score = st.number_input("Spending Score (1-100)", min_value=1, max_value=100, value=72)
-        submitted3 = st.form_submit_button("Predict Segment")
+    st.caption("Assigns a farmer to one of 5 segments found by K-Means clustering.")
+    if clustering_artifact is None:
+        model_missing(CLUSTERING_FILE)
+    else:
+        clustering_scaler = clustering_artifact["scaler"]
+        clustering_kmeans = clustering_artifact["kmeans"]
+        with st.form("clustering_form"):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                farm_size_acres = st.number_input(
+                    "Farm Size (acres)", min_value=0.0, value=16.29, step=0.1, key="clu_size")
+                annual_yield_tonnes = st.number_input(
+                    "Annual Yield (tonnes)", min_value=0.0, value=35.9, step=0.1, key="clu_yield")
+                income_per_acre_kes = st.number_input(
+                    "Income per Acre (KES)", min_value=0.0, value=2000.0, step=100.0, key="clu_income")
+            with col_b:
+                years_farming_experience = st.number_input(
+                    "Years of Farming Experience", min_value=0.0, value=7.0, step=1.0, key="clu_exp")
+                market_access_score = st.number_input(
+                    "Market Access Score", min_value=0.0, value=51.72, step=0.1, key="clu_market")
+            submitted3 = st.form_submit_button("Predict Segment")
 
-    if submitted3:
-        input_row = pd.DataFrame([{
-            "Age": age,
-            "Annual Income (k$)": annual_income_k,
-            "Spending Score (1-100)": spending_score,
-        }])
-        scaled_input = clustering_scaler.transform(input_row)
-        cluster = int(clustering_kmeans.predict(scaled_input)[0])
-        st.success(f"Assigned segment: Cluster {cluster}")
+        if submitted3:
+            # Exactly the column names the scaler was fitted on.
+            input_row = pd.DataFrame([{
+                "farm_size_acres": farm_size_acres,
+                "annual_yield_tonnes": annual_yield_tonnes,
+                "income_per_acre_kes": income_per_acre_kes,
+                "years_farming_experience": years_farming_experience,
+                "market_access_score": market_access_score,
+            }])[list(clustering_scaler.feature_names_in_)]
+            cluster = int(clustering_kmeans.predict(clustering_scaler.transform(input_row))[0])
+            st.success(f"Assigned segment: Cluster {cluster}")
+
+            # What a typical farmer in each segment looks like (cluster centres in real units).
+            centres = pd.DataFrame(
+                clustering_scaler.inverse_transform(clustering_kmeans.cluster_centers_),
+                columns=clustering_scaler.feature_names_in_,
+            ).round(2)
+            centres.index.name = "Cluster"
+            st.write("Typical farmer in each segment (this farmer's segment is highlighted):")
+            st.dataframe(centres.style.apply(
+                lambda r: ["background-color: #d4edda" if r.name == cluster else "" for _ in r], axis=1))
 
 # -----------------------------------------------------------------------
 # 4. Association Rule Mining
@@ -183,7 +227,11 @@ with tab_arm:
         top_n = st.number_input("Top N Recommendations", min_value=1, value=3)
         submitted4 = st.form_submit_button("Get Recommendations")
 
-    if submitted4:
+    if submitted4 and arm_artifact is None:
+        model_missing(RECOMMENDER_FILE)
+    elif submitted4:
+        recommendation_lookup = arm_artifact["recommendation_lookup"]
+        sku_lookup = arm_artifact["sku_lookup"]
         cart = {sku.strip() for sku in cart_text.split(",") if sku.strip()}
         candidates = {}
         for antecedent, consequent_list in recommendation_lookup.items():
