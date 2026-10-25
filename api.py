@@ -86,6 +86,12 @@ clustering_artifact = joblib.load(
 clustering_scaler = clustering_artifact["scaler"]
 clustering_kmeans = clustering_artifact["kmeans"]
 
+farmer_clustering_artifact = joblib.load(
+    os.path.join(MODEL_DIR, "kmeans_farmer_segmentation.joblib")
+)
+farmer_scaler = farmer_clustering_artifact["scaler"]
+farmer_kmeans = farmer_clustering_artifact["kmeans"]
+
 arm_artifact = joblib.load(
     os.path.join(MODEL_DIR, "apriori_recommendation_rules.joblib")
 )
@@ -227,6 +233,30 @@ def predict_customer_segment():
         "model": "K-Means (k=5, standardized features)",
     })
 
+# 3b. CLUSTERING -- assign a new farmer to a segment (Member 4: Maxwell)
+#
+# Sample request (PowerShell):
+#   Invoke-RestMethod -Method Post `
+#     -Uri "http://127.0.0.1:5000/api/v1/models/farmer-segmenter/predictions" `
+#     -ContentType "application/json" `
+#     -Body '{"COLUMN_1": 0, "COLUMN_2": 0, "COLUMN_3": 0}'
+@app.route("/api/v1/models/farmer-segmenter/predictions", methods=["POST"])
+def predict_farmer_segment():
+    payload = request.get_json(silent=True) or {}
+    expected = list(farmer_scaler.feature_names_in_)
+    missing = [col for col in expected if col not in payload]
+    if missing:
+        return jsonify({"error": "Missing input field(s)", "missing": missing,
+                        "expected_fields": expected}), 400
+
+    input_row = pd.DataFrame([payload])[expected]
+    scaled_input = farmer_scaler.transform(input_row)
+    assigned_cluster = int(farmer_kmeans.predict(scaled_input)[0])
+
+    return jsonify({
+        "assigned_cluster": assigned_cluster,
+        "model": f"K-Means (k={farmer_kmeans.n_clusters}, standardized features)",
+    })
 
 # 4. ASSOCIATION RULE MINING -- recommend products for a shopping cart
 
