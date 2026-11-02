@@ -46,7 +46,7 @@ st.title("BBT 4206 -- Model Validation Demos")
 
 tab_regression, tab_classification, tab_clustering, tab_arm = st.tabs([
     "Farm Income Regressor", "Invoice Payment Risk Classifier",
-    "Farmer Segmenter", "E-commerce Recommender",
+    "Farmer Segmenter", "Food Delivery Recommender",
 ])
 
 # -----------------------------------------------------------------------
@@ -219,27 +219,56 @@ with tab_clustering:
                 lambda r: ["background-color: #d4edda" if r.name == cluster else "" for _ in r], axis=1))
 
 # -----------------------------------------------------------------------
-# 4. Association Rule Mining
+# 4. Food Delivery Recommender — Apriori Association Rules
 # -----------------------------------------------------------------------
 with tab_arm:
-    with st.form("arm_form"):
-        cart_text = st.text_input("Cart (comma-separated SKUs)", "H06, H07")
-        top_n = st.number_input("Top N Recommendations", min_value=1, value=3)
-        submitted4 = st.form_submit_button("Get Recommendations")
+    st.subheader("Food Delivery Recommender")
 
-    if submitted4 and arm_artifact is None:
-        model_missing(RECOMMENDER_FILE)
-    elif submitted4:
-        recommendation_lookup = arm_artifact["recommendation_lookup"]
-        sku_lookup = arm_artifact["sku_lookup"]
-        cart = {sku.strip() for sku in cart_text.split(",") if sku.strip()}
-        candidates = {}
-        for antecedent, consequent_list in recommendation_lookup.items():
-            if antecedent.issubset(cart):
-                for sku, confidence, lift in consequent_list:
-                    if sku not in cart:
-                        if sku not in candidates or confidence > candidates[sku][0]:
-                            candidates[sku] = (confidence, lift)
+    st.markdown("Discover food items that are frequently ordered together. "
+                "Our Apriori recommendation model suggests complementary dishes "
+                "based on association rules.")
+
+    st.info("Try entering F10, F12 to get a recommendation. "
+            "F10 = Chicken Biryani and F12 = Naan Bread.")
+
+    with st.form("arm_form"):
+        cart_text = st.text_input("Your Food Cart (comma-separated food IDs)", value="F10, F12", placeholder= "e.g. F10, F12")
+        top_n = st.number_input("Number of Recommendations", min_value=1, max_value=10, value=3, step=1)
+        submitted4 = st.form_submit_button("Find Food Pairings", use_container_width=True)
+
+    if submitted4:
+        if arm_artifact is None: model_missing(RECOMMENDER_FILE)
+
+        else:
+            recommendation_lookup = arm_artifact["recommendation_lookup"]
+            sku_lookup = arm_artifact["sku_lookup"]
+
+            cart = {
+                sku.strip().upper()
+                for sku in cart_text.split(",")
+                if sku.strip()
+            }
+
+            if not cart:
+                st.error("Please enter at least one food item ID.")
+
+            else:
+                # Check that all food IDs exist
+                known_skus = set(sku_lookup.index)
+                unknown_items = sorted(cart - known_skus)
+
+                if unknown_items:
+                    st.error("Unknown food item ID(s): " + ", ".join(unknown_items) + ". Please check your cart.")
+
+                else:
+                    candidates = {}
+                    for antecedent, consequent_list in recommendation_lookup.items():
+                        if antecedent.issubset(cart):
+                            for sku, confidence, lift in consequent_list:
+                                if sku not in cart:
+                                    if sku in candidates and confidence <= candidates[sku][0]:
+                                        continue
+                                    candidates[sku] = (confidence, lift)
 
         ranked = sorted(candidates.items(), key=lambda item: item[1][0], reverse=True)[:int(top_n)]
         if not ranked:

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>E-Commerce Recommender</title>
+<title>Food Pairings Recommender</title>
 <style>
   :root {
     --accent: #ea580c;
@@ -71,20 +71,180 @@
   }
   ul.recs li:last-child { border-bottom: none; }
   ul.recs .meta { color: var(--muted); font-size: 12px; }
+
+  /* D4 Intelligence — plum and lavender theme */
+
+body {
+    background: linear-gradient(135deg, #faf6fc, #f2eaf6);
+    color: #35243e;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.card {
+    background: #ffffff;
+    border: 1px solid #ecdfef;
+    border-radius: 24px;
+    box-shadow: 0 15px 45px rgba(79, 44, 94, 0.09);
+    padding: 38px;
+    max-width: 720px;
+    margin: 35px auto;
+}
+
+.back-link {
+    color: #80528e;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.back-link:hover {
+    color: #563263;
+}
+
+.food-hero {
+    margin: 35px 0;
+    padding: 35px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #60366e, #9563a5);
+    color: white;
+}
+
+.food-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #f2d5fc;
+    margin-bottom: 15px;
+}
+
+.food-hero h1 {
+    font-size: clamp(30px, 5vw, 42px);
+    line-height: 1.15;
+    margin: 0 0 16px;
+    color: #ffffff;
+}
+
+.food-hero p {
+    color: #f3e6f7;
+    font-size: 15px;
+    line-height: 1.7;
+    margin: 0;
+}
+
+label {
+    display: block;
+    color: #4a3055;
+    font-weight: 700;
+    margin-top: 22px;
+    margin-bottom: 9px;
+}
+
+input[type="text"],
+input[type="number"] {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid #dbcbe2;
+    border-radius: 12px;
+    background: #fdfbfe;
+    color: #35243e;
+    font-size: 15px;
+}
+
+input:focus {
+    outline: none;
+    border-color: #9563a5;
+    box-shadow: 0 0 0 3px rgba(149, 99, 165, 0.15);
+}
+
+.input-help {
+    color: #887491;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 8px;
+}
+
+button[type="submit"] {
+    display: block;
+    width: 100%;
+    background: linear-gradient(135deg, #704181, #9563a5);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 25px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(112, 65, 129, 0.2);
+}
+
+button[type="submit"]:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+#result.show {
+    margin-top: 25px;
+    border-radius: 15px;
+    padding: 20px;
+}
+
+#result.ok {
+    background: #f4edf7;
+    border: 1px solid #e5d4ec;
+    color: #493255;
+}
+
+#result.err {
+    background: #fff1f0;
+    border: 1px solid #f5c5c0;
+    color: #a12e2e;
+}
+
+.recs li {
+    padding: 14px 0;
+    border-bottom: 1px solid #e8ddeb;
+}
+
+.meta {
+    color: #866a92;
+    font-size: 13px;
+}
+
+@media (max-width: 600px) {
+    .card {
+        padding: 22px;
+        margin: 15px;
+    }
+
+    .food-hero {
+        padding: 25px 20px;
+    }
+}
 </style>
 </head>
 <body>
   <div class="card">
-    <a class="back-link" href="index.html">&larr; All endpoints</a>
-    <span class="badge">Association Rules</span>
-    <h1>Shopping Cart Recommender</h1>
-    <p class="lead">Calls <code>POST /api/v1/models/ecommerce-recommender/predictions</code></p>
+    <a class="back-link" href="index.html">&larr; Back to Dashboard</a>
+    <div class="food-hero">
+    <span class="food-badge"> SMART FOOD RECOMMENDATIONS</span>
+      <h1>Find your perfect<br>food pairing.</h1>
+      <p>Select your favorite dishes and let our recommendation model discover delicious combinations for you.</p>
+    </div>
 
     <form id="predictForm">
-      <label for="cart">Cart SKUs <span class="hint">(comma-separated, e.g. P01, P04 or H06, H07)</span></label>
-      <input type="text" id="cart" value="P01, P04" required>
+      <label for="cart">Your Food Cart </label>
+      <input type="text" id="cart" value="F10, F12" required>
+      <p class="input-help">Try F10 (Chicken Biryani) and F12 (Naan Bread). Separate multiple food IDs with commas.</p>
+      <p class="lead">Example: F10 = Chicken Biryani, F12 = Naan Bread</p>
 
-      <label for="top_n">Number of Recommendations</label>
+      <label for="top_n">How many recommendations</label>
       <input type="number" id="top_n" value="3" min="1" max="10" required>
 
       <button type="submit" id="submitBtn">Get Recommendations</button>
@@ -141,7 +301,7 @@
         const items = data.recommendations.map(r => `
           <li>
             <span>${r.product_name} <span class="meta">(${r.sku})</span></span>
-            <span class="meta">conf ${r.confidence} &middot; lift ${r.lift}</span>
+            <span class="meta">Confidence ${r.confidence * 100}.toFixed(1)% &middot; Lift ${r.lift}</span>
           </li>`).join("");
         result.className = "show ok";
         result.innerHTML = `Model: ${data.model}<ul class="recs">${items}</ul>`;
