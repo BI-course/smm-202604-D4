@@ -557,36 +557,77 @@ def predict_farmer_segment():
 # endpoint performs the exact same lookup+rank step a production recommender
 # microservice would perform on every incoming request; it does not mine
 # for the rules again.
+
 @app.route("/api/v1/models/ecommerce-recommender/predictions", methods=["POST"])
 def recommend_products():
-    payload = request.get_json()
-    cart = set(payload.get("cart", []))
-    top_n = int(payload.get("top_n", 3))
+    payload = request.get_json(silent=True)
 
+    if not isinstance(payload, dict):
+        return jsonify({
+            "error": "Request body must be a JSON object."
+        }), 400
+
+    cart = payload.get("cart")
+    top_n = payload.get("top_n", 3)
+
+    if not isinstance(cart, list) or not cart:
+        return jsonify({
+            "error": "cart must be a non-empty list of food item IDs."
+        }), 400
+
+    if not all(isinstance(item, str) for item in cart):
+        return jsonify({
+            "error": "Every cart item must be a string."
+        }), 400
+
+    if not isinstance(top_n, int) or isinstance(top_n, bool) or top_n < 1:
+        return jsonify({
+            "error": "top_n must be a positive integer."
+        }), 400
+
+    unknown_items = sorted(set(cart) - set(sku_lookup.index))
+
+    if unknown_items:
+        return jsonify({
+            "error": "Unknown food item ID(s).",
+            "unknown_items": unknown_items
+        }), 400
+
+    cart_set = set(cart)
     candidates = {}
+
     for antecedent, consequent_list in recommendation_lookup.items():
-        if antecedent.issubset(cart):
+        if antecedent.issubset(cart_set):
             for sku, confidence, lift in consequent_list:
-                if sku not in cart:
-                    if sku not in candidates or confidence > candidates[sku][0]:
+                if sku not in cart_set:
+                    if (
+                        sku not in candidates
+                        or confidence > candidates[sku][0]
+                    ):
                         candidates[sku] = (confidence, lift)
 
-    ranked = sorted(candidates.items(), key=lambda item: item[1][0], reverse=True)[:top_n]
+    ranked = sorted(
+        candidates.items(),
+        key=lambda item: item[1][0],
+        reverse=True
+    )[:top_n]
+
     recommendations = [
         {
             "sku": str(sku),
-            "product_name": sku_lookup.loc[sku, "product_name"],
+            "product_name": str(sku_lookup.loc[sku, "product_name"]),
             "confidence": round(float(confidence), 3),
-            "lift": round(float(lift), 2),
+            "lift": round(float(lift), 2)
         }
         for sku, (confidence, lift) in ranked
     ]
 
     return jsonify({
-        "cart": sorted(cart),
+        "cart": sorted(cart_set),
         "recommendations": recommendations,
-        "model": "Apriori association rules, cleaned + precomputed lookup",
+        "model": "Food Delivery Apriori Association Rules"
     })
+
 
 
 # -----------------------------------------------------------------------
