@@ -8,9 +8,9 @@
 
 | **Details**                                                                                                                           | **Comment** |
 |:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Student ID**                                                                                                                        | 153130             |
+| **Name**                                                                                                                              | Ivy Tanui             |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** | I handled the integration and deployment.  I made sure all four worked together in one api.py, loading the models from the model/ folder. I merged the pull requests into main, fixed a merge conflict in the Streamlit app.py and removed the demo models and endpoints from the template.<br/>I deployed the same api.py to Render with the pinned library versions and tested all four endpoints on the live URL with curl. The answers matched the local API.<br/>I also built the farm income regressor and farmer segmenter HTML pages and improved the index and food recommender pages. They check for missing or wrong inputs and show the API's error message.<br/>I learned that a binary model file can't be merged like code, so each model file has to come from one person's branch. The library versions used to save a model must match the ones used to serve it, which is why we pinned them. I also learned that a free Render service sleeps, so the first request is slow.<br/>Branch links: https://github.com/BI-course/smm-202604-D4/tree/feature/integration-ivy <br/> https://github.com/BI-course/smm-202604-D4/tree/feature/cleanup-ivy <br/> https://github.com/BI-course/smm-202604-D4/tree/feature/html-pages-ivy   |
 
 **Member 2:**
 
@@ -46,7 +46,7 @@
 
 ## Chosen Level of Difficulty
 
-**Specify the chosen level of difficulty** (baseline, intermediate, or advanced):
+**Specify the chosen level of difficulty** (baseline, intermediate, or advanced): **Advanced**
 
 ## Video Demonstration
 
@@ -70,9 +70,9 @@ Fill in only the rows that apply to your chosen difficulty level (see Part C bel
 
 | **Deployment target**                             | **URL** |
 |:--------------------------------------------------|:--------|
-| Render (the full `api.py`, all endpoints)         |         |
+| Render (the full `api.py`, all endpoints)         |https://smm-202604-d4.onrender.com         |
 | Hugging Face Space (Gradio, one tab per model)    |         |
-| Streamlit Community Cloud app (one tab per model) |         |
+| Streamlit Community Cloud app (one tab per model) | https://smm-202604-d4.streamlit.app/        |
 
 ---
 
