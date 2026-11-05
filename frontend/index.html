@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Serving ML Models</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f3f4f6;
@@ -16,7 +19,7 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
   }
@@ -28,7 +31,7 @@
   }
   header h1 { margin: 0 0 8px; font-size: 26px; }
   header p { margin: 0; opacity: 0.9; font-size: 15px; }
-  main { max-width: 920px; margin: -24px auto 64px; padding: 0 16px; }
+  main { max-width: 1100px; margin: 0 auto 64px; padding: 0 25px; }
 
   .info-card {
     background: var(--card);
@@ -92,7 +95,10 @@
     border-radius: 999px;
     margin-bottom: 10px;
   }
-  .endpoint-card h3 { margin: 0 0 6px; font-size: 16px; }
+  .endpoint-card h3 { margin: 0 0 8px; font-size: 17px; }
+  .endpoint-card p { margin-bottom: 8px; }
+  .endpoint-card code { word-break: break-all; }
+  .endpoint-card::after { content: "Open demo \2192"; display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--dot); }
   .endpoint-card p { margin: 0; font-size: 13px; color: var(--muted); }
   .endpoint-card code { font-size: 11px; color: var(--muted); }
 
@@ -109,7 +115,7 @@ body {
     margin: 0;
     background: #faf7fc;
     color: #32243b;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
 .dashboard-hero {
@@ -202,6 +208,8 @@ body {
         flex-direction: column;
     }
 }
+  /* Manrope everywhere, including form controls (which ignore the page font by default) */
+  button, input, select, textarea { font-family: inherit; }
 </style>
 </head>
 <body>
@@ -231,31 +239,32 @@ body {
     <span class="model-count">4 ML Models</span>
 </div>
 
-
-
- <h2>Our Machine Learning Models</h2>
-
+<main>
  <div class="endpoint-grid">
 
    <a class="endpoint-card c1" href="farm_income_regressor.html">
+    <span class="tag">Regression</span>
     <h3>Farm Income Predictor</h3>
     <p>Predicts farm income using machine learning.</p>
     <p><code>/api/v1/models/farm-income-regressor/predictions</code></p>
    </a>
 
    <a class="endpoint-card c2" href="invoice_payment_risk_classifier.html">
+    <span class="tag">Classification</span>
     <h3>Invoice Payment Risk</h3>
     <p>Predicts the payment risk associated with an invoice.</p>
     <p><code>/api/v1/models/invoice-payment-risk-classifier/predictions</code></p>
    </a>
 
    <a class="endpoint-card c3" href="farmer_segmenter.html">
+    <span class="tag">Clustering</span>
     <h3>Farmer Segmentation</h3>
     <p>Identifies groups of farmers with similar characteristics.</p>
     <p><code>/api/v1/models/farmer-segmenter/predictions</code></p>
    </a>
 
    <a class="endpoint-card c4" href="ecommerce_recommender.html">
+    <span class="tag">Association Rules</span>
     <h3>Food Delivery Recommender</h3>
     <p>Discover complementary food items based on your order.</p>
     <p><code>/api/v1/models/ecommerce-recommender/predictions</code></p>
@@ -265,7 +274,7 @@ body {
 
 </main>
 
-<footer>Open any card above directly in your browser -- no web server required. Remember to start <code>api.py</code> first.</footer>
+<footer>Each demo calls the live API. Running locally? Start <code>api.py</code> first.<br>BBT 4206 &middot; Group D4</footer>
 
 </body>
 </html>

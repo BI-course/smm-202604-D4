@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Food Pairings Recommender</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --accent: #ea580c;
@@ -20,7 +23,7 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
     display: flex;
@@ -77,7 +80,7 @@
 body {
     background: linear-gradient(135deg, #faf6fc, #f2eaf6);
     color: #35243e;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
 .card {
@@ -227,25 +230,56 @@ button[type="submit"]:disabled {
         padding: 25px 20px;
     }
 }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip {
+    width: auto; margin: 0; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid #dbcbe2; background: #fdfbfe; color: #4a3055;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;
+}
+.chip:hover { background: #f4edf7; border-color: #9563a5; }
+.chip.selected { background: #704181; border-color: #704181; color: #fff; }
+.chip .id { opacity: 0.7; font-weight: 700; margin-right: 4px; }
+  /* Manrope everywhere, including form controls (which ignore the page font by default) */
+  button, input, select, textarea { font-family: inherit; }
+  /* Clear "back to all models" button */
+  a.back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-bottom: 18px; padding: 8px 16px;
+    background: #fff; color: #374151; border: 1px solid #d1d5db; border-radius: 999px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  a.back-link:hover { background: #f4edf7; border-color: #563263; color: #563263; transform: translateX(-2px); }
+  /* Recommendation results */
+  ul.recs li { display: block; padding: 16px 0; }
+  .rec-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .rec-name { font-size: 16px; font-weight: 700; }
+  .rec-bar { height: 6px; background: #e8ddeb; border-radius: 3px; overflow: hidden; margin: 10px 0 12px; }
+  .rec-bar .fill { height: 100%; background: #704181; }
+  .rec-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { background: #fbf8fc; border: 1px solid #ecdfef; border-radius: 12px; padding: 10px 12px; }
+  .stat .label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #866a92; }
+  .stat .value { font-size: 20px; font-weight: 800; color: #563263; margin: 2px 0; }
+  .stat .hint { font-size: 12px; line-height: 1.4; color: #6b5a75; }
+  @media (max-width: 480px) { .rec-stats { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
   <div class="card">
-    <a class="back-link" href="index.html">&larr; Back to Dashboard</a>
+    <a class="back-link" href="index.html">&larr; Back to all models</a>
     <div class="food-hero">
     <span class="food-badge"> SMART FOOD RECOMMENDATIONS</span>
       <h1>Find your perfect<br>food pairing.</h1>
       <p>Select your favorite dishes and let our recommendation model discover delicious combinations for you.</p>
     </div>
 
-    <form id="predictForm">
-      <label for="cart">Your Food Cart </label>
-      <input type="text" id="cart" value="F10, F12" required>
-      <p class="input-help">Try F10 (Chicken Biryani) and F12 (Naan Bread). Separate multiple food IDs with commas.</p>
-      <p class="lead">Example: F10 = Chicken Biryani, F12 = Naan Bread</p>
+    <form id="predictForm" novalidate>
+      <label for="cart">Your Food Cart</label>
+      <input type="text" id="cart" value="F10, F12" placeholder="e.g. F10, F12">
+      <p class="input-help">Tap the dishes below to add or remove them, or type food IDs (or names) separated by commas.</p>
 
-      <label for="top_n">How many recommendations</label>
-      <input type="number" id="top_n" value="3" min="1" max="10" required>
+      <div class="chips" id="chips" aria-label="Available foods"></div>
 
       <button type="submit" id="submitBtn">Get Recommendations</button>
     </form>
@@ -254,62 +288,177 @@ button[type="submit"]:disabled {
   </div>
 
 <script>
-  const protocol = window.location.protocol;                 // "http:", "https:", or "file:"
-  const hostname = window.location.hostname || "127.0.0.1";  // hostname is "" for a file:// page
-  const isSecure = protocol === "https:";
+  // file:// or editor live-server -> Flask on port 5000. Served by Nginx / Render -> relative path.
+  const isDirect = window.location.protocol === "file:" ||
+                   ["5500", "63342"].includes(window.location.port);
+  const API_BASE = isDirect ? "http://127.0.0.1:5000" : "";
+  const API_URL = API_BASE + "/api/v1/models/ecommerce-recommender/predictions";
 
-  const API_ORIGIN = `${isSecure ? "https" : "http"}://${hostname}:${isSecure ? "443" : "5000"}`;
-  const API_URL = `${API_ORIGIN}/api/v1/models/ecommerce-recommender/predictions`;
+  // The 15 foods the model was trained on (item_id -> product_name).
+  const FOODS = [
+    ["F01", "Beef Burger"], ["F02", "French Fries"], ["F03", "Soda"],
+    ["F04", "Chicken Wings"], ["F05", "Margherita Pizza"], ["F06", "Garlic Bread"],
+    ["F07", "California Roll Sushi"], ["F08", "Miso Soup"], ["F09", "Green Tea"],
+    ["F10", "Chicken Biryani"], ["F11", "Raita"], ["F12", "Naan Bread"],
+    ["F13", "Chapati"], ["F14", "Chocolate Cake"], ["F15", "Ice Cream"],
+  ];
+  const NAME_TO_ID = {};
+  FOODS.forEach(function (f) { NAME_TO_ID[f[1].toLowerCase()] = f[0]; });
+  const VALID_IDS = FOODS.map(function (f) { return f[0]; });
 
-  // const API_URL = "http://127.0.0.1:5000/api/v1/models/ecommerce-recommender/predictions";
+  const cartInput = document.getElementById("cart");
+  const chipsBox = document.getElementById("chips");
+  const result = document.getElementById("result");
+  const submitBtn = document.getElementById("submitBtn");
+
+  function showError(message) {
+    result.className = "show err";
+    result.textContent = message;
+  }
+
+  // Turn what was typed into food IDs. Accepts "f10", "F10" or "Chicken Biryani".
+  // Anything else is returned as unknown so the person is told what to fix.
+  function parseCart() {
+    const ids = [];
+    const unknown = [];
+    cartInput.value.split(",").forEach(function (raw) {
+      const token = raw.trim();
+      if (!token) { return; }
+      const id = VALID_IDS.includes(token.toUpperCase()) ? token.toUpperCase() : NAME_TO_ID[token.toLowerCase()];
+      if (!id) { unknown.push(token); }
+      else if (!ids.includes(id)) { ids.push(id); }
+    });
+    return { ids: ids, unknown: unknown };
+  }
+
+  function writeCart(ids) { cartInput.value = ids.join(", "); refreshChips(); }
+
+  function refreshChips() {
+    const selected = parseCart().ids;
+    chipsBox.querySelectorAll(".chip").forEach(function (chip) {
+      chip.classList.toggle("selected", selected.includes(chip.dataset.id));
+    });
+  }
+
+  FOODS.forEach(function (f) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.dataset.id = f[0];
+    const id = document.createElement("span");
+    id.className = "id";
+    id.textContent = f[0];
+    chip.appendChild(id);
+    chip.appendChild(document.createTextNode(f[1]));
+    chip.addEventListener("click", function () {
+      const ids = parseCart().ids;
+      const at = ids.indexOf(f[0]);
+      if (at === -1) { ids.push(f[0]); } else { ids.splice(at, 1); }
+      writeCart(ids);
+    });
+    chipsBox.appendChild(chip);
+  });
+  cartInput.addEventListener("input", refreshChips);
+  refreshChips();
 
   document.getElementById("predictForm").addEventListener("submit", async function (e) {
     e.preventDefault();
-    const submitBtn = document.getElementById("submitBtn");
-    const result = document.getElementById("result");
+    result.className = "";
 
-    const cartSkus = document.getElementById("cart").value
-      .split(",")
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
-    const payload = {
-      cart: cartSkus,
-      top_n: parseInt(document.getElementById("top_n").value),
-    };
+    // 1. Check the input here: empty cart, unknown foods, bad number. Send nothing if wrong.
+    const cart = parseCart();
+    if (cart.ids.length === 0 && cart.unknown.length === 0) {
+      showError("Your cart is empty. Tap one or more foods below, or type their IDs (for example F10, F12).");
+      cartInput.focus();
+      return;
+    }
+    if (cart.unknown.length) {
+      showError("Not a food on the menu: " + cart.unknown.join(", ") +
+        ". Pick from the list below, using IDs F01 to F15 (for example F10 = Chicken Biryani).");
+      cartInput.focus();
+      return;
+    }
+    writeCart(cart.ids);   // tidy what was typed, e.g. "chicken biryani" -> "F10"
 
     submitBtn.disabled = true;
     submitBtn.textContent = "Fetching...";
-    result.className = "";
 
     try {
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ cart: cart.ids }),   // the API returns up to 3 suggestions by default
       });
+
+      let data = null;
+      try { data = await response.json(); } catch (parseErr) { /* non-JSON reply, handled below */ }
+
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Server responded ${response.status}: ${text.slice(0, 200)}`);
+        const reason = data && data.error ? data.error : "Server responded " + response.status + ".";
+        const extra = data && data.unknown_items ? " (" + data.unknown_items.join(", ") + ")" : "";
+        showError("The API rejected the request: " + reason + extra);
+        return;
       }
-      const data = await response.json();
+      if (!data || !Array.isArray(data.recommendations)) {
+        showError("The API replied, but the answer was not in the expected format.");
+        return;
+      }
+
+      result.className = "show ok";
+      result.textContent = "";
+      const modelLine = document.createElement("div");
+      modelLine.textContent = "Model: " + data.model;
+      result.appendChild(modelLine);
 
       if (data.recommendations.length === 0) {
-        result.className = "show ok";
-        result.innerHTML = `Model: ${data.model}<br><br>No rules matched this cart -- try a different SKU combination.`;
-      } else {
-        const items = data.recommendations.map(r => `
-          <li>
-            <span>${r.product_name} <span class="meta">(${r.sku})</span></span>
-            <span class="meta">Confidence ${r.confidence * 100}.toFixed(1)% &middot; Lift ${r.lift}</span>
-          </li>`).join("");
-        result.className = "show ok";
-        result.innerHTML = `Model: ${data.model}<ul class="recs">${items}</ul>`;
+        const none = document.createElement("p");
+        none.textContent = "No rules matched this cart. Try a different combination, for example F10 and F12.";
+        result.appendChild(none);
+        return;
       }
+
+      const list = document.createElement("ul");
+      list.className = "recs";
+      function el(tag, cls, text) {
+        const n = document.createElement(tag);
+        if (cls) { n.className = cls; }
+        if (text !== undefined) { n.textContent = text; }
+        return n;
+      }
+      function stat(label, value, hint) {
+        const box = el("div", "stat");
+        box.appendChild(el("div", "label", label));
+        box.appendChild(el("div", "value", value));
+        box.appendChild(el("div", "hint", hint));
+        return box;
+      }
+      data.recommendations.forEach(function (r) {
+        const pct = r.confidence * 100;
+        const li = document.createElement("li");
+
+        const top = el("div", "rec-top");
+        top.appendChild(el("span", "rec-name", r.product_name));
+        top.appendChild(el("span", "meta", r.sku));
+        li.appendChild(top);
+
+        const bar = el("div", "rec-bar");
+        const fill = el("div", "fill");
+        fill.style.width = pct.toFixed(0) + "%";
+        bar.appendChild(fill);
+        li.appendChild(bar);
+
+        const stats = el("div", "rec-stats");
+        stats.appendChild(stat("Confidence", pct.toFixed(1) + "%",
+          "Of orders like this cart, " + pct.toFixed(0) + "% also included " + r.product_name + "."));
+        stats.appendChild(stat("Lift", Number(r.lift).toFixed(2) + "\u00d7",
+          "About " + Number(r.lift).toFixed(1) + " times more likely than in an average order."));
+        li.appendChild(stats);
+        list.appendChild(li);
+      });
+      result.appendChild(list);
     } catch (err) {
-      result.className = "show err";
-      result.textContent = "Request failed: " + err.message +
-        " (is api.py running on http://127.0.0.1:5000 ?)";
+      showError("Could not reach the API at " + API_URL +
+        ". Is api.py (or the Nginx + Gunicorn containers) running? (" + err.message + ")");
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "Get Recommendations";
