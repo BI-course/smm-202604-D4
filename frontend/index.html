@@ -102,80 +102,167 @@
   .c4 { --dot: #ea580c; } .c4 .tag { background: #fff7ed; color: #c2410c; }
 
   footer { text-align: center; font-size: 12px; color: var(--muted); padding: 24px 16px 48px; }
+
+ /* Modern D4 dashboard theme */
+
+body {
+    margin: 0;
+    background: #faf7fc;
+    color: #32243b;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.dashboard-hero {
+    background: linear-gradient(135deg, #563263, #89599a);
+    color: white;
+    padding: 35px 45px 65px;
+    border-radius: 0 0 30px 30px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 19px;
+    font-weight: 700;
+}
+
+.brand-icon {
+    background: #ffffff25;
+    border-radius: 12px;
+    padding: 8px 12px;
+    color: #f3d5ff;
+}
+
+.hero-content {
+    max-width: 650px;
+    margin-top: 65px;
+}
+
+.eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #b38ac2;
+}
+
+.dashboard-hero .eyebrow {
+    color: #ead1f3;
+}
+
+.dashboard-hero h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    line-height: 1.15;
+    margin: 18px 0;
+}
+
+.dashboard-hero p {
+    font-size: 16px;
+    line-height: 1.7;
+    color: #f2e7f5;
+}
+
+.section-heading {
+    max-width: 1100px;
+    margin: 45px auto 25px;
+    padding: 0 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.section-heading h2 {
+    font-size: 28px;
+    margin: 8px 0;
+}
+
+.model-count {
+    background: #f0e4f5;
+    color: #714780;
+    padding: 9px 15px;
+    border-radius: 25px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Mobile layout */
+
+@media (max-width: 600px) {
+    .dashboard-hero {
+        padding: 25px 22px 45px;
+    }
+
+    .hero-content {
+        margin-top: 45px;
+    }
+
+    .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Serving Machine Learning Models through a RESTish API using Flask in Python</h1>
-  <p>BBT 4206 &middot; Business Intelligence II &middot; Week 4-6 of 13</p>
+<header class="dashboard-hero">
+    <div class="brand">
+        <span>D4 Intelligence</span>
+    </div>
+
+    <div class="hero-content">
+        <span class="eyebrow">BUSINESS INTELLIGENCE · GROUP D4</span>
+
+        <h1>Intelligent predictions.<br>Better decisions.</h1>
+
+        <p>
+            Explore four machine learning applications designed
+            to transform data into meaningful insights.
+        </p>
+    </div>
 </header>
 
-<main>
-  <div class="info-card">
-    <dl class="info-grid">
-      <dt>Course Codes</dt><dd>BBT 4206</dd>
-      <dt>Course Name</dt><dd>BBT 4206: Business Intelligence II (Week 4-6 of 13)</dd>
-      <dt>Semester</dt><dd>September to December 2026</dd>
-      <dt>Lecturer</dt><dd>Allan Omondi</dd>
-      <dt>Contact</dt><dd>aomondi@strathmore.edu</dd>
-      <dt>Note</dt>
-      <dd>
-        The lecture contains both theory and practice. This forms part of the practice.
-        It is intended for educational purposes only.<br>
-        Recommended citation:
-        <a href="https://raw.githubusercontent.com/course-files/ServingMLModels/refs/heads/main/RecommendedCitation.bib" target="_blank">BibTeX</a>
-      </dd>
-    </dl>
-  </div>
+<div class="section-heading">
+    <div>
+        <span class="eyebrow">OUR APPLICATIONS</span>
+        <h2>Explore Our Models</h2>
+    </div>
+    <span class="model-count">4 ML Models</span>
+</div>
 
-  <div class="info-card">
-    <h2 style="margin-top:0;">Request Flow</h2>
-    <img src="RequestFlow.jpg" alt="Request Flow Diagram" style="display:block; background:#fff; padding:16px; border:1px solid #ccc; max-width:60%; margin-bottom:24px;">
-    <ol class="flow-steps">
-      <li><strong>Client</strong> (Postman / cURL / one of the four frontends below)
-        <div style="color:var(--muted);">Sends a request to <code>https://yourdomain/api/...</code></div>
-      </li>
-      <li><strong>NGINX</strong> (reverse proxy)
-        <div style="color:var(--muted);">Terminates HTTPS, serves static files, forwards <code>/api/...</code> to Gunicorn.</div>
-      </li>
-      <li><strong>Gunicorn</strong> (ASGI server)
-        <div style="color:var(--muted);">Manages worker processes and translates HTTP into Python ASGI calls.</div>
-      </li>
-      <li><strong>Flask</strong> (this app, <code>api.py</code>)
-        <div style="color:var(--muted);">Routes the request to the matching <code>@app.route</code> and returns a response.</div>
-      </li>
-    </ol>
-    <span class="flow-arrow">Response returns: Flask &rarr; Gunicorn &rarr; NGINX &rarr; Client</span>
-  </div>
 
-  <h2>API Endpoints &amp; Sample Frontends</h2>
-  <div class="endpoint-grid">
-    <a class="endpoint-card c1" href="sme_revenue_regressor.html">
-      <span class="tag">Regression</span>
-      <h3>SME Revenue Predictor</h3>
-      <p>Predicts monthly revenue (KES) for an SME.</p>
-      <p><code>/api/v1/models/sme-revenue-regressor/predictions</code></p>
-    </a>
-    <a class="endpoint-card c2" href="sme_credit_risk_classifier.html">
-      <span class="tag">Classification</span>
-      <h3>Credit Risk Classifier</h3>
-      <p>Predicts an SME loan applicant's risk category.</p>
-      <p><code>/api/v1/models/sme-credit-risk-classifier/predictions</code></p>
-    </a>
-    <a class="endpoint-card c3" href="mall_customer_segmenter.html">
-      <span class="tag">Clustering</span>
-      <h3>Customer Segmenter</h3>
-      <p>Assigns a mall customer to one of five segments.</p>
-      <p><code>/api/v1/models/mall-customer-segmenter/predictions</code></p>
-    </a>
-    <a class="endpoint-card c4" href="ecommerce_recommender.html">
-      <span class="tag">Association Rules</span>
-      <h3>Cart Recommender</h3>
-      <p>Recommends products for a shopping cart.</p>
-      <p><code>/api/v1/models/ecommerce-recommender/predictions</code></p>
-    </a>
-  </div>
+
+ <h2>Our Machine Learning Models</h2>
+
+ <div class="endpoint-grid">
+
+   <a class="endpoint-card c1" href="farm_income_regressor.html">
+    <h3>Farm Income Predictor</h3>
+    <p>Predicts farm income using machine learning.</p>
+    <p><code>/api/v1/models/farm-income-regressor/predictions</code></p>
+   </a>
+
+   <a class="endpoint-card c2" href="invoice_payment_risk_classifier.html">
+    <h3>Invoice Payment Risk</h3>
+    <p>Predicts the payment risk associated with an invoice.</p>
+    <p><code>/api/v1/models/invoice-payment-risk-classifier/predictions</code></p>
+   </a>
+
+   <a class="endpoint-card c3" href="farmer_segmenter.html">
+    <h3>Farmer Segmentation</h3>
+    <p>Identifies groups of farmers with similar characteristics.</p>
+    <p><code>/api/v1/models/farmer-segmenter/predictions</code></p>
+   </a>
+
+   <a class="endpoint-card c4" href="ecommerce_recommender.html">
+    <h3>Food Delivery Recommender</h3>
+    <p>Discover complementary food items based on your order.</p>
+    <p><code>/api/v1/models/ecommerce-recommender/predictions</code></p>
+   </a>
+
+ </div>
+
 </main>
 
 <footer>Open any card above directly in your browser -- no web server required. Remember to start <code>api.py</code> first.</footer>
