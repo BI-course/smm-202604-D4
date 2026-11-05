@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farm Income Regressor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #0891b2;
+    --accent-dark: #0e7490;
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --ok-bg: #ecfeff;
+    --err-bg: #fef2f2;
+    --err-text: #b91c1c;
+    --err-border: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
+    max-width: 560px;
+    width: 100%;
+    padding: 32px 32px 28px;
+  }
+  .back-link { display: inline-block; margin-bottom: 16px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .back-link:hover { color: var(--accent); }
+  .badge {
+    display: inline-block; background: var(--ok-bg); color: var(--accent-dark);
+    font-size: 12px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
+  label .hint { font-weight: 400; color: var(--muted); }
+  input, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 10px; font-size: 14px; background: #fff; color: var(--text);
+  }
+  input:focus, select:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(8,145,178,0.15);
+  }
+  input.invalid, select.invalid { border-color: var(--err-border); background: #fff7f7; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    width: 100%; margin-top: 24px; padding: 12px 16px; background: var(--accent);
+    color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s ease;
+  }
+  button:hover { background: var(--accent-dark); }
+  button:disabled { background: #7dd3e8; cursor: default; }
+  #result { margin-top: 20px; padding: 16px; border-radius: 10px; font-size: 14px; display: none; }
+  #result.show { display: block; }
+  #result.ok { background: var(--ok-bg); color: var(--accent-dark); }
+  #result.err { background: var(--err-bg); color: var(--err-text); }
+  #result .figure { font-size: 22px; font-weight: 700; margin: 4px 0 8px; }
+  .prob-bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; }
+  .prob-bar .name { width: 96px; }
+  .prob-bar .track { flex: 1; height: 6px; background: #d1f5fb; border-radius: 3px; overflow: hidden; }
+  .prob-bar .fill { height: 100%; background: var(--accent); }
+</style>
+<style>
+  .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  input:disabled { background: #f3f4f6; color: var(--muted); }
+  /* Manrope everywhere, including form controls (which ignore the page font by default) */
+  button, input, select, textarea { font-family: inherit; }
+  /* Clear "back to all models" button */
+  a.back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-bottom: 18px; padding: 8px 16px;
+    background: #fff; color: #374151; border: 1px solid #d1d5db; border-radius: 999px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  a.back-link:hover { background: #ecfeff; border-color: #0891b2; color: #0891b2; transform: translateX(-2px); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <a class="back-link" href="index.html">&larr; Back to all models</a>
+    <span class="badge">Regression</span>
+    <h1>Farm Income Regressor</h1>
+    <p class="lead">Calls <code>POST /api/v1/models/farm-income-regressor/predictions</code>.
+      Predicts a Kenyan farm's annual income in KES.</p>
+
+    <form id="predictForm" novalidate>
+      <div class="row">
+        <div>
+          <label for="crop_type">Crop Type</label>
+          <select id="crop_type" data-label="Crop Type">
+            <option value="">Select...</option>
+            <option>Coffee</option><option>Dairy</option><option>Horticulture</option>
+            <option>Maize</option><option selected>Tea</option>
+          </select>
+        </div>
+        <div>
+          <label for="county">County</label>
+          <select id="county" data-label="County">
+            <option value="">Select...</option>
+            <option selected>Kericho</option><option>Kiambu</option><option>Meru</option>
+            <option>Nakuru</option><option>Uasin Gishu</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="irrigation_type">Irrigation Type</label>
+          <select id="irrigation_type" data-label="Irrigation Type">
+            <option value="">Select...</option>
+            <option selected>Manual</option><option>Drip</option><option>Automated</option><option>None</option>
+          </select>
+        </div>
+        <div>
+          <label for="cooperative_member">Cooperative Member</label>
+          <select id="cooperative_member" data-label="Cooperative Member">
+            <option value="">Select...</option>
+            <option selected>No</option><option>Yes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="farm_size_acres">Farm Size (acres)</label>
+          <input type="number" id="farm_size_acres" data-label="Farm Size" min="0" step="0.01" value="10.49">
+        </div>
+        <div>
+          <label for="years_farming_experience">Years of Experience</label>
+          <input type="number" id="years_farming_experience" data-label="Years of Experience" min="0" step="0.1" value="9.3">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="num_workers_employed">Workers Employed</label>
+          <input type="number" id="num_workers_employed" data-label="Workers Employed" min="0" step="1" value="1">
+        </div>
+        <div>
+          <label for="rainfall_mm">Rainfall (mm / year)</label>
+          <input type="number" id="rainfall_mm" data-label="Rainfall" min="0" step="1" value="967">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="soil_quality_score">Soil Quality Score</label>
+          <input type="number" id="soil_quality_score" data-label="Soil Quality Score" min="0" step="0.1" value="54.5">
+        </div>
+        <div>
+          <label for="market_distance_km">Distance to Market (km)</label>
+          <input type="number" id="market_distance_km" data-label="Distance to Market" min="0" step="0.1" value="6">
+        </div>
+      </div>
+
+      <label for="irrigation_maintenance_cost_kes">Irrigation Maintenance Cost (KES)</label>
+      <input type="number" id="irrigation_maintenance_cost_kes" data-label="Irrigation Maintenance Cost" min="0" step="0.01" value="3207.36">
+      <div class="note" id="maintNote">Not needed when Irrigation Type is "None".</div>
+
+      <button type="submit" id="submitBtn">Predict Farm Income</button>
+    </form>
+
+    <div id="result" role="alert"></div>
+  </div>
+
+<script>
+  // file:// or editor live-server -> Flask on port 5000. Served by Nginx -> relative path.
+  const isDirect = window.location.protocol === "file:" ||
+                   ["5500", "63342"].includes(window.location.port);
+  const API_BASE = isDirect ? "http://127.0.0.1:5000" : "";
+  const API_URL = API_BASE + "/api/v1/models/farm-income-regressor/predictions";
+
+  const CATEGORICAL_FIELDS = ["crop_type", "county", "irrigation_type", "cooperative_member"];
+  const NUMERIC_FIELDS = [
+    "farm_size_acres", "years_farming_experience", "num_workers_employed", "rainfall_mm",
+    "soil_quality_score", "market_distance_km", "irrigation_maintenance_cost_kes",
+  ];
+  const ALL_FIELDS = CATEGORICAL_FIELDS.concat(NUMERIC_FIELDS);
+
+  const form = document.getElementById("predictForm");
+  const result = document.getElementById("result");
+  const submitBtn = document.getElementById("submitBtn");
+  const irrigation = document.getElementById("irrigation_type");
+  const maint = document.getElementById("irrigation_maintenance_cost_kes");
+
+  // No irrigation system = no maintenance cost: lock the field and send null.
+  function syncMaintenance() {
+    const none = irrigation.value === "None";
+    maint.disabled = none;
+    if (none) { maint.classList.remove("invalid"); }
+  }
+  irrigation.addEventListener("change", syncMaintenance);
+  syncMaintenance();
+
+  function showError(message) {
+    result.className = "show err";
+    result.textContent = message;
+  }
+
+  ALL_FIELDS.forEach(function (id) {
+    const el = document.getElementById(id);
+    el.addEventListener("input", function () { el.classList.remove("invalid"); });
+    el.addEventListener("change", function () { el.classList.remove("invalid"); });
+  });
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    ALL_FIELDS.forEach(function (id) { document.getElementById(id).classList.remove("invalid"); });
+
+    const activeFields = ALL_FIELDS.filter(function (id) { return !document.getElementById(id).disabled; });
+
+    // 1. Missing / invalid input: stop here, name the fields, send nothing.
+    const missing = [];
+    const notNumbers = [];
+    activeFields.forEach(function (id) {
+      const el = document.getElementById(id);
+      const value = el.value.trim();
+      if (value === "") {
+        missing.push(el);
+      } else if (NUMERIC_FIELDS.includes(id) && !Number.isFinite(Number(value))) {
+        notNumbers.push(el);
+      }
+    });
+    if (missing.length || notNumbers.length) {
+      missing.concat(notNumbers).forEach(function (el) { el.classList.add("invalid"); });
+      const parts = [];
+      if (missing.length) {
+        parts.push("Please fill in: " + missing.map(function (el) { return el.dataset.label; }).join(", ") + ".");
+      }
+      if (notNumbers.length) {
+        parts.push("These must be numbers: " + notNumbers.map(function (el) { return el.dataset.label; }).join(", ") + ".");
+      }
+      showError(parts.join(" "));
+      (missing.concat(notNumbers))[0].focus();
+      return;
+    }
+
+    // 2. Build the JSON body with the exact column names the pipeline was trained on.
+    const payload = {};
+    CATEGORICAL_FIELDS.forEach(function (id) { payload[id] = document.getElementById(id).value; });
+    NUMERIC_FIELDS.forEach(function (id) { payload[id] = Number(document.getElementById(id).value); });
+    if (irrigation.value === "None") { payload.irrigation_maintenance_cost_kes = null; }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Predicting...";
+    result.className = "";
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      let data = null;
+      try { data = await response.json(); } catch (parseErr) { /* non-JSON reply, handled below */ }
+
+      if (!response.ok) {
+        const reason = data && data.error ? data.error : "Server responded " + response.status + ".";
+        showError("The API rejected the request: " + reason);
+        return;
+      }
+      if (!data || typeof data.predicted_annual_farm_income_kes !== "number") {
+        showError("The API replied, but the answer was not in the expected format.");
+        return;
+      }
+
+      // 3. Show the prediction (built with the DOM, not innerHTML).
+      result.className = "show ok";
+      result.textContent = "";
+      const modelLine = document.createElement("div");
+      modelLine.textContent = "Model: " + data.model;
+      const figure = document.createElement("div");
+      figure.className = "figure";
+      figure.textContent = "KES " + data.predicted_annual_farm_income_kes.toLocaleString("en-KE",
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const caption = document.createElement("div");
+      caption.textContent = "Predicted annual farm income";
+      result.appendChild(modelLine);
+      result.appendChild(figure);
+      result.appendChild(caption);
+    } catch (err) {
+      showError("Could not reach the API at " + API_URL +
+        ". Is api.py (or the Nginx + Gunicorn containers) running? (" + err.message + ")");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Predict Farm Income";
+    }
+  });
+</script>
+</body>
+</html>
