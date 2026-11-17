@@ -62,7 +62,7 @@ At minimum, the video must show, in one continuous walkthrough:
 
 Note that you are required to submit the link to the video and NOT the video itself. The video should NOT be uploaded to your repository—that would be a misuse of GitHub.
 
-**Link to the video:**
+**Link to the video:** https://docs.google.com/videos/d/1WliAtElWPht6XS0Uofe_REmaKqU0oyqOC6bbF6wX1TE/play?usp=sharing
 
 ## Public URLs
 
